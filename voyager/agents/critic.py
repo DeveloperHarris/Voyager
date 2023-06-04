@@ -25,21 +25,29 @@ class CriticAgent:
         return system_message
 
     def render_human_message(self, *, events, task, context, chest_observation):
+        chat_messages = []
+        error_messages = []
+        damage_messages = []
         assert events[-1][0] == "observe", "Last event must be observe"
-        biome = events[-1][1]["status"]["biome"]
-        time_of_day = events[-1][1]["status"]["timeOfDay"]
-        voxels = events[-1][1]["voxels"]
-        health = events[-1][1]["status"]["health"]
-        hunger = events[-1][1]["status"]["food"]
-        position = events[-1][1]["status"]["position"]
-        equipment = events[-1][1]["status"]["equipment"]
-        inventory_used = events[-1][1]["status"]["inventoryUsed"]
-        inventory = events[-1][1]["inventory"]
-
         for i, (event_type, event) in enumerate(events):
-            if event_type == "onError":
-                print(f"\033[31mCritic Agent: Error occurs {event['onError']}\033[0m")
-                return None
+            if event_type == "onChat":
+                chat_messages.append(event["onChat"])
+            elif event_type == "onError":
+                error_messages.append(event["onError"])
+            elif event_type == "onDamage":
+                damage_messages.append(event["onDamage"])
+            elif event_type == "observe":
+                biome = event["status"]["biome"]
+                time_of_day = event["status"]["timeOfDay"]
+                voxels = event["voxels"]
+                entities = event["status"]["entities"]
+                health = event["status"]["health"]
+                hunger = event["status"]["food"]
+                position = event["status"]["position"]
+                equipment = event["status"]["equipment"]
+                inventory_used = event["status"]["inventoryUsed"]
+                inventory = event["inventory"]
+                assert i == len(events) - 1, "observe must be the last event"
 
         observation = ""
 
@@ -54,6 +62,10 @@ class CriticAgent:
 
         observation += f"Health: {health:.1f}/20\n\n"
         observation += f"Hunger: {hunger:.1f}/20\n\n"
+
+        if damage_messages:
+            damage_log = "\n".join(damage_messages)
+            observation += f"Damage log: {damage_log}\n\n"
 
         observation += f"Position: x={position['x']:.1f}, y={position['y']:.1f}, z={position['z']:.1f}\n\n"
 
@@ -73,7 +85,8 @@ class CriticAgent:
         else:
             observation += f"Context: None\n\n"
 
-        print(f"\033[31m****Critic Agent human message****\n{observation}\033[0m")
+        print(
+            f"\033[31m****Critic Agent human message****\n{observation}\033[0m")
         return HumanMessage(content=observation)
 
     def human_check_task_success(self):
@@ -107,7 +120,8 @@ class CriticAgent:
                 response["critique"] = ""
             return response["success"], response["critique"]
         except Exception as e:
-            print(f"\033[31mError parsing critic response: {e} Trying again!\033[0m")
+            print(
+                f"\033[31mError parsing critic response: {e} Trying again!\033[0m")
             return self.ai_check_task_success(
                 messages=messages,
                 max_retries=max_retries - 1,
