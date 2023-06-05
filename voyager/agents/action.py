@@ -9,6 +9,7 @@ from langchain.schema import AIMessage, HumanMessage, SystemMessage
 
 from voyager.prompts import load_prompt
 from voyager.control_primitives_context import load_control_primitives_context
+from voyager.utils.llm_logging import DiskRecordHandler
 
 
 class ActionAgent:
@@ -37,6 +38,7 @@ class ActionAgent:
             model_name=model_name,
             temperature=temperature,
             request_timeout=request_timout,
+            callbacks=[DiskRecordHandler()]
         )
 
     def update_chest_memory(self, chests):

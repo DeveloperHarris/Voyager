@@ -11,6 +11,8 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.vectorstores import Chroma
 
+from voyager.utils.llm_logging import DiskRecordHandler
+
 
 class CurriculumAgent:
     def __init__(
@@ -30,11 +32,13 @@ class CurriculumAgent:
             model_name=model_name,
             temperature=temperature,
             request_timeout=request_timout,
+            callbacks=[DiskRecordHandler()]
         )
         self.qa_llm = ChatOpenAI(
-            model_name=qa_model_name,
-            temperature=qa_temperature,
+            model_name=model_name,
+            temperature=temperature,
             request_timeout=request_timout,
+            callbacks=[DiskRecordHandler()]
         )
         assert mode in [
             "auto",
@@ -44,11 +48,13 @@ class CurriculumAgent:
         self.ckpt_dir = ckpt_dir
         U.f_mkdir(f"{ckpt_dir}/curriculum/vectordb")
         if resume:
-            print(f"\033[35mLoading Curriculum Agent from {ckpt_dir}/curriculum\033[0m")
+            print(
+                f"\033[35mLoading Curriculum Agent from {ckpt_dir}/curriculum\033[0m")
             self.completed_tasks = U.load_json(
                 f"{ckpt_dir}/curriculum/completed_tasks.json"
             )
-            self.failed_tasks = U.load_json(f"{ckpt_dir}/curriculum/failed_tasks.json")
+            self.failed_tasks = U.load_json(
+                f"{ckpt_dir}/curriculum/failed_tasks.json")
             self.qa_cache = U.load_json(f"{ckpt_dir}/curriculum/qa_cache.json")
         else:
             self.completed_tasks = []
@@ -163,14 +169,16 @@ class CurriculumAgent:
 
         other_blocks = ", ".join(
             list(
-                set(block_records).difference(set(voxels).union(set(inventory.keys())))
+                set(block_records).difference(
+                    set(voxels).union(set(inventory.keys())))
             )
         )
 
         other_blocks = other_blocks if other_blocks else "None"
 
         nearby_entities = (
-            ", ".join([k for k, v in sorted(entities.items(), key=lambda x: x[1])])
+            ", ".join([k for k, v in sorted(
+                entities.items(), key=lambda x: x[1])])
             if entities
             else "None"
         )
@@ -178,7 +186,8 @@ class CurriculumAgent:
         completed_tasks = (
             ", ".join(self.completed_tasks) if self.completed_tasks else "None"
         )
-        failed_tasks = ", ".join(self.failed_tasks) if self.failed_tasks else "None"
+        failed_tasks = ", ".join(
+            self.failed_tasks) if self.failed_tasks else "None"
 
         # filter out optional inventory items if required
         if self.progress < self.warm_up["optional_inventory_items"]:
@@ -234,7 +243,8 @@ class CurriculumAgent:
                 if should_include:
                     content += observation[key]
 
-        print(f"\033[35m****Curriculum Agent human message****\n{content}\033[0m")
+        print(
+            f"\033[35m****Curriculum Agent human message****\n{content}\033[0m")
         return HumanMessage(content=content)
 
     def propose_next_task(self, *, events, chest_observation, max_retries=5):
@@ -291,7 +301,8 @@ class CurriculumAgent:
 
     def propose_next_ai_task(self, *, messages, max_retries=5):
         curriculum = self.llm(messages).content
-        print(f"\033[31m****Curriculum Agent ai message****\n{curriculum}\033[0m")
+        print(
+            f"\033[31m****Curriculum Agent ai message****\n{curriculum}\033[0m")
         try:
             response = self.parse_ai_message(curriculum)
             assert "next_task" in response
@@ -362,7 +373,8 @@ class CurriculumAgent:
         U.dump_json(
             self.completed_tasks, f"{self.ckpt_dir}/curriculum/completed_tasks.json"
         )
-        U.dump_json(self.failed_tasks, f"{self.ckpt_dir}/curriculum/failed_tasks.json")
+        U.dump_json(self.failed_tasks,
+                    f"{self.ckpt_dir}/curriculum/failed_tasks.json")
 
     def decompose_task(self, task, events):
         messages = [
@@ -376,7 +388,8 @@ class CurriculumAgent:
             f"\033[31m****Curriculum Agent task decomposition****\nFinal task: {task}\033[0m"
         )
         response = self.llm(messages).content
-        print(f"\033[31m****Curriculum Agent task decomposition****\n{response}\033[0m")
+        print(
+            f"\033[31m****Curriculum Agent task decomposition****\n{response}\033[0m")
         return fix_and_parse_json(response)
 
     def run_qa(self, *, events, chest_observation):
@@ -405,7 +418,8 @@ class CurriculumAgent:
             self.qa_cache_questions_vectordb.add_texts(
                 texts=[question],
             )
-            U.dump_json(self.qa_cache, f"{self.ckpt_dir}/curriculum/qa_cache.json")
+            U.dump_json(self.qa_cache,
+                        f"{self.ckpt_dir}/curriculum/qa_cache.json")
             self.qa_cache_questions_vectordb.persist()
             questions.append(question)
             answers.append(answer)
@@ -426,7 +440,8 @@ class CurriculumAgent:
             self.qa_cache_questions_vectordb.add_texts(
                 texts=[question],
             )
-            U.dump_json(self.qa_cache, f"{self.ckpt_dir}/curriculum/qa_cache.json")
+            U.dump_json(self.qa_cache,
+                        f"{self.ckpt_dir}/curriculum/qa_cache.json")
             self.qa_cache_questions_vectordb.persist()
         context = f"Question: {question}\n{answer}"
         return context
@@ -488,7 +503,8 @@ class CurriculumAgent:
     def run_qa_step2_answer_questions(self, question):
         messages = [
             self.render_system_message_qa_step2_answer_questions(),
-            self.render_human_message_qa_step2_answer_questions(question=question),
+            self.render_human_message_qa_step2_answer_questions(
+                question=question),
         ]
         print(f"\033[35mCurriculum Agent Question: {question}\033[0m")
         qa_answer = self.qa_llm(messages).content
