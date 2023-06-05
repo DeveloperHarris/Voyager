@@ -4,7 +4,6 @@ javascript
 setuptools
 openai
 chardet
-cchardet
 chromadb
 tiktoken
 requests
